@@ -1,2 +1,3 @@
 libraries/lib/*
+libraries/include/*
 .gdb_history

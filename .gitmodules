@@ -4,3 +4,6 @@
 [submodule "submodules/glm"]
 	path = submodules/glm
 	url = git@github.com:LucasPayne/glm.git
+[submodule "submodules/vk-bootstrap"]
+	path = submodules/vk-bootstrap
+	url = git@github.com:LucasPayne/vk-bootstrap.git
