@@ -4,3 +4,6 @@
 [submodule "submodules/glm"]
 	path = submodules/glm
 	url = git@github.com:LucasPayne/glm.git
+[submodule "submodules/jsoncpp"]
+	path = submodules/jsoncpp
+	url = git@github.com:open-source-parsers/jsoncpp.git

@@ -31,6 +31,7 @@ CFLAGS  += $(foreach d, $(INCLUDE_PATH), -I$d) # Includes search path.
 LDFLAGS  = $(foreach d, $(LIB_PATH), -L$d) # Library search path.
 LDFLAGS += $(foreach d, $(LIB_PATH), -Wl,-rpath=$(realpath $d)) # Embed the whole library search path in the rpath.
 LDFLAGS += -lglfw \
+	   -ljsoncpp \
            -lvulkan \
            -ldl
 
@@ -39,9 +40,12 @@ LDFLAGS += -lglfw \
 #--------------------------------------------------------------------------------
 SOURCE_FILES=\
     src/main.cc\
-    src/vk_print.c
+    src/vk_print.cc
+INCLUDE_FILES=\
+    src/vk_print.h\
+    src/vk_util.h
 
-build/main: GNUmakefile $(SOURCE_FILES)
+build/main: GNUmakefile $(SOURCE_FILES) $(INCLUDE_FILES)
 	$(CC) $(CFLAGS) -o $@ $(SOURCE_FILES) $(LDFLAGS)
 
 clean:

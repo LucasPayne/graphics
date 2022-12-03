@@ -27,8 +27,8 @@ INCLUDE_DIR="$(realpath libraries/include)"
     cd ..
     rm -rf $INCLUDE_DIR/GLFW
     cp -r "$(realpath include/GLFW)" "$INCLUDE_DIR/GLFW"
-    cp -f build/src/libglfw.so $LIB_DIR
-    cp -f build/src/libglfw.so.* $LIB_DIR
+    rm -f $LIB_DIR/libglfw.so*
+    cp build/src/libglfw.so* $LIB_DIR
 )
 (
     echo "Installing glm in-tree..."
@@ -36,4 +36,20 @@ INCLUDE_DIR="$(realpath libraries/include)"
 
     rm -rf $INCLUDE_DIR/glm
     cp -r glm $INCLUDE_DIR/glm
+)
+(
+    echo "Installing jsoncpp in-tree..."
+    cd submodules/jsoncpp
+
+    if [ ! -d build ] ; then
+        mkdir build
+    fi
+    cd build
+    cmake -S .. -B . -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Debug
+    make
+    cd ..
+    rm -rf $INCLUDE_DIR/json
+    cp -r include/json $INCLUDE_DIR/json
+    rm -f $LIB_DIR/libjsoncpp.so*
+    cp build/lib/libjsoncpp.so* $LIB_DIR
 )
