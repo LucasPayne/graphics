@@ -37,20 +37,3 @@ INCLUDE_DIR="$(realpath libraries/include)"
     rm -rf $INCLUDE_DIR/glm
     cp -r glm $INCLUDE_DIR/glm
 )
-(
-    echo "Installing vk-bootstrap in-tree..."
-    cd submodules/vk-bootstrap
-    
-    if [ ! -d build ] ; then
-        mkdir build
-    fi
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-    cd build
-    make
-    cd ..
-    rm -rf "$INCLUDE_DIR/VkBootstrap"
-    mkdir "$INCLUDE_DIR/VkBootstrap"
-    cp src/*.h "$INCLUDE_DIR/VkBootstrap"
-    cp build/libvk-bootstrap.a "$LIB_DIR"
-)
-
