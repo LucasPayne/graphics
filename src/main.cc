@@ -10,11 +10,10 @@
 #include <stdint.h>
 #include <vector>
 #include <limits>
-// #define UINT8_MAX std::numeric_limits<uint8_t>::max()
-// #define UINT16_MAX std::numeric_limits<uint16_t>::max()
-// #define UINT32_MAX std::numeric_limits<uint32_t>::max()
-// #define UINT64_MAX std::numeric_limits<uint64_t>::max()
 #include <optional>
+#include <set>
+
+#include "ansi_color.h"
 
 #include "vk_util.h"
 #include "vk_print.h"
@@ -54,53 +53,104 @@ struct VulkanSystem
     VkQueue device_compute_queue;
 };
 
-int main()
+bool CreateVulkanSystem(VulkanSystem *vk_system,
+                        const std::vector<std::string> &extra_explicit_layers,
+                        const std::vector<std::string> &extra_instance_extensions,
+                        const std::vector<std::string> &extra_device_extensions)
 {
-    if ( !glfwInit() )
-    {
-        std::cerr << "[GLFW] Failed to initialize glfw.\n";
-        exit(EXIT_FAILURE);
-    }
-
-    if ( !glfwVulkanSupported() )
-    {
-        std::cerr << "[GLFW] Vulkan is not supported (Is the loader installed correctly?)\n";
-    }
-
     /*
-     * Create the vulkan instance.
+     * Create the vulkan instance and return imported associated vulkan handles
+     * in the VulkanSystem struct.
+     *
+     * Specification of created vulkan system:
+     *     One instance.
+     *     One logical device preferably created for a discrete GPU.
+     *     This device must support presentation.
+     *     This device must expose compute and graphics capabilities.
+     *     One graphics capable queue.
+     *     One compute capable queue. (Note: The queues may coincide).
      */
+    std::set<std::string> _explicit_layers = {
+    };
+    std::set<std::string> _instance_extensions = {
+        "VK_KHR_surface"
+    };
+    std::set<std::string> _device_extensions = {
+    };
+    #define create_string_vector(NAME)\
+        for (auto &str : extra_##NAME) _##NAME .insert(str);\
+        std::vector<const char *> NAME;\
+        NAME.reserve(_##NAME.size());\
+        for (auto &str : _##NAME) NAME.push_back(str.c_str());
+    create_string_vector(explicit_layers);
+    create_string_vector(instance_extensions);
+    create_string_vector(device_extensions);
+
     VkInstance vk_instance;
     {
         VkApplicationInfo app_info = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
         app_info.apiVersion = VK_API_VERSION_1_3;
 
-        std::vector<const char *> explicit_layers = {
-            "VK_LAYER_KHRONOS_validation"
-        };
-        std::vector<const char *> extensions = {
-            //
-        };
-        // Add glfw's required extensions (e.g. KHR_surface).
-        uint32_t num_glfw_extensions;
-        const char **glfw_extensions = glfwGetRequiredInstanceExtensions( &num_glfw_extensions );
-        for ( uint32_t i = 0; i < num_glfw_extensions; i++) extensions.push_back( glfw_extensions[i] );
-
-        std::vector<VkExtensionProperties> extension_properties =
+        // Check availability of instance extensions.
+        std::vector<VkExtensionProperties> instance_extension_properties =
             vk_get_vector<VkExtensionProperties>(vkEnumerateInstanceExtensionProperties, nullptr);
-        for (auto &ext : extension_properties)
+        for (const char *requested_extension_name : instance_extensions)
+        {
+            bool has_extension = false;
+            for (auto &ext : instance_extension_properties)
+            {
+                if ( strcmp(requested_extension_name, ext.extensionName) == 0 )
+                    has_extension = true;
+            }
+            if ( !has_extension )
+            {
+                fprintf(stderr, C_RED "[%s] Requested instance extension \"%s\" not available.\n" C_RESET, __func__, requested_extension_name);
+                return false;
+            }
+        }
+
+        // Check availability of requested layers.
+        std::vector<VkLayerProperties> layer_properties =
+            vk_get_vector<VkLayerProperties>(vkEnumerateInstanceLayerProperties);
+        for (const char *requested_layer_name : explicit_layers)
+        {
+            bool has_layer = false;
+            for (auto &layer : layer_properties)
+            {
+                if ( strcmp(requested_layer_name, layer.layerName) == 0 )
+                    has_layer = true;
+            }
+            if ( !has_layer )
+            {
+                fprintf(stderr, C_RED "[%s] Requested explicit layer \"%s\" not available.\n" C_RESET, __func__, requested_layer_name);
+                return false;
+            }
+        }
+
+        printf(C_CYAN "Available instance extensions (%zu):\n" C_RESET, instance_extension_properties.size());
+        for (auto &ext : instance_extension_properties)
         {
             printf("    %s (spec %u)\n",
                    ext.extensionName,
                    ext.specVersion);
         }
-        
+        printf(C_CYAN "Using explicit layers:\n" C_RESET);
+        for (const char *layer : explicit_layers)
+        {
+            printf("    %s\n", layer);
+        }
+        printf(C_CYAN "Using instance extensions:\n" C_RESET);
+        for (const char *extension : instance_extensions)
+        {
+            printf("    %s\n", extension);
+        }
+
         VkInstanceCreateInfo info = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
         info.pApplicationInfo = &app_info;
         info.enabledLayerCount = explicit_layers.size();
         info.ppEnabledLayerNames = &explicit_layers[0];
-        info.enabledExtensionCount = extensions.size();
-        info.ppEnabledExtensionNames = &extensions[0];
+        info.enabledExtensionCount = instance_extensions.size();
+        info.ppEnabledExtensionNames = &instance_extensions[0];
         VK_SUCCEED(vkCreateInstance(&info, nullptr, &vk_instance));
     }
 
@@ -111,7 +161,7 @@ int main()
     {
         std::vector<VkPhysicalDevice> physical_devices =
             vk_get_vector<VkPhysicalDevice>(vkEnumeratePhysicalDevices, vk_instance);
-        assert(physical_devices.size() > 0);
+        if ( physical_devices.size() == 0 ) return false;
 
         // Pick a physical device.
         // Prefer a discrete gpu, but otherwise just use the first device.
@@ -128,7 +178,7 @@ int main()
             }
         }
 
-        printf("%zu physical devices:\n", physical_devices.size());
+        printf(C_CYAN "%zu physical devices:\n" C_RESET, physical_devices.size());
         for (uint32_t i = 0; i < physical_devices.size(); i++)
         {
             VkPhysicalDeviceProperties properties;
@@ -147,17 +197,35 @@ int main()
     uint32_t vk_device_graphics_family;
     uint32_t vk_device_compute_family;
     {
-        std::vector<VkExtensionProperties> device_extensions =
+        std::vector<VkExtensionProperties> device_extension_properties =
             vk_get_vector<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, vk_physical_device, nullptr);
-        printf("%zu device extensions supported:\n", device_extensions.size());
+        printf(C_CYAN "Available device extensions (%zu):\n" C_RESET, device_extension_properties.size());
         #if 0
-        for (auto &ext : device_extensions)
+        for (auto &ext : device_extension_properties)
         {
             printf("    %s (spec %u)\n",
                    ext.extensionName,
                    ext.specVersion);
         }
+        #else
+        printf("    ...\n");
         #endif
+
+        // Check availability of device extensions.
+        for (const char *requested_extension_name : device_extensions)
+        {
+            bool has_extension = false;
+            for (auto &ext : device_extension_properties)
+            {
+                if ( strcmp(requested_extension_name, ext.extensionName) == 0 )
+                    has_extension = true;
+            }
+            if ( !has_extension )
+            {
+                fprintf(stderr, C_RED "[%s] Requested device extension \"%s\" not available.\n" C_RESET, __func__, requested_extension_name);
+                return false;
+            }
+        }
 
         std::vector<VkQueueFamilyProperties> queue_families =
             vk_get_vector<VkQueueFamilyProperties>(vkGetPhysicalDeviceQueueFamilyProperties, vk_physical_device);
@@ -196,8 +264,16 @@ int main()
                 vk_device_compute_family = i;
             }
         }
-        assert_msg(vk_device_graphics_family != UINT32_MAX, "[vk] Chosen device has no graphics-capable queue family.");
-        assert_msg(vk_device_compute_family != UINT32_MAX, "[vk] Chosen device has no compute-capable queue family.");
+        if ( vk_device_graphics_family == UINT32_MAX )
+        {
+            fprintf(stderr, C_RED "[%s] Chosen device has no graphics-capable queue family." C_RESET, __func__);
+            return false;
+        }
+        if ( vk_device_compute_family == UINT32_MAX )
+        {
+            fprintf(stderr, C_RED "[%s] Chosen device has no compute-capable queue family." C_RESET, __func__);
+            return false;
+        }
 
         std::vector<VkDeviceQueueCreateInfo> queue_infos;
         {
@@ -223,6 +299,8 @@ int main()
         VkDeviceCreateInfo info = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
         info.queueCreateInfoCount = queue_infos.size();
         info.pQueueCreateInfos = &queue_infos[0];
+        info.enabledExtensionCount = device_extensions.size();
+        info.ppEnabledExtensionNames = &device_extensions[0];
         VK_SUCCEED(vkCreateDevice(vk_physical_device, &info, nullptr, &vk_device));
     }
 
@@ -234,24 +312,69 @@ int main()
     VkQueue vk_device_compute_queue;
     vkGetDeviceQueue(vk_device, vk_device_compute_family, 0, &vk_device_compute_queue);
 
-    VulkanSystem vk_system;
-    vk_system.instance = vk_instance;
-    vk_system.physical_device = vk_physical_device;
-    vk_system.device = vk_device;
-    vk_system.device_graphics_family = vk_device_graphics_family;
-    vk_system.device_compute_family = vk_device_compute_family;
-    vk_system.device_graphics_queue = vk_device_graphics_queue;
-    vk_system.device_compute_queue = vk_device_compute_queue;
+    /*
+     * Set up the VulkanSystem.
+     */
+    vk_system->instance = vk_instance;
+    vk_system->physical_device = vk_physical_device;
+    vk_system->device = vk_device;
+    vk_system->device_graphics_family = vk_device_graphics_family;
+    vk_system->device_compute_family = vk_device_compute_family;
+    vk_system->device_graphics_queue = vk_device_graphics_queue;
+    vk_system->device_compute_queue = vk_device_compute_queue;
+    return true;
+}
 
+int main()
+{
+    if ( !glfwInit() )
+    {
+        fprintf(stderr, C_RED  "[GLFW] Failed to initialize glfw.\n" C_RESET);
+        exit(EXIT_FAILURE);
+    }
+
+    if ( !glfwVulkanSupported() )
+    {
+        fprintf(stderr, C_RED  "[GLFW] Vulkan is not supported (Is the loader installed correctly?)\n" C_RESET);
+        exit(EXIT_FAILURE);
+    }
+    
+    /*
+     * Create the VulkanSystem.
+     */
+    std::vector<std::string> extra_layers = {
+    };
+    std::vector<std::string> extra_instance_extensions = {
+    };
+    std::vector<std::string> extra_device_extensions = {
+    };
+    // Add glfw's required extensions (e.g. KHR_surface).
+    {
+        uint32_t num_glfw_instance_extensions;
+        const char **glfw_instance_extensions = glfwGetRequiredInstanceExtensions( &num_glfw_instance_extensions );
+        for ( uint32_t i = 0; i < num_glfw_instance_extensions; i++)
+            extra_instance_extensions.emplace_back( glfw_instance_extensions[i] );
+    }
+    VulkanSystem vk_system;
+    if ( !CreateVulkanSystem(&vk_system,
+                             extra_layers,
+                             extra_instance_extensions,
+                             extra_device_extensions) )
+    {
+        fprintf(stderr, C_RED "[vk] Failed to initialize vulkan.\n" C_RESET);
+        exit(EXIT_FAILURE);
+    }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow *glfw_window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
-    if (glfw_window == nullptr) {
-        std::cerr << "[GLFW] Failed to create window.\n";
-        return -1;
+    if (glfw_window == nullptr)
+    {
+        fprintf(stderr, C_RED "[GLFW] Failed to create window.\n" C_RESET);
+        exit(EXIT_FAILURE);
     }
 
-    while(!glfwWindowShouldClose(glfw_window)) {
+    while(!glfwWindowShouldClose(glfw_window))
+    {
         glfwPollEvents();
     }
 
