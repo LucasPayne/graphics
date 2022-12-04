@@ -58,10 +58,18 @@ struct VulkanSystem
     VkQueue device_presentation_queue;
 
     VkSurfaceKHR surface;
+    VkSwapchainKHR swap_chain;
+};
+
+struct VulkanSystemCreateSurfaceOutput
+{
+    VkSurfaceKHR surface;
+    uint32_t initial_framebuffer_pixel_width;
+    uint32_t initial_framebuffer_pixel_height;
 };
 
 bool CreateVulkanSystem(VulkanSystem *vk_system,
-                        std::function<bool(VkInstance, VkPhysicalDevice, VkSurfaceKHR *)> create_surface,
+                        std::function<bool(VkInstance, VkPhysicalDevice, VulkanSystemCreateSurfaceOutput *)> create_surface,
                         const std::vector<std::string> &extra_explicit_layers,
                         const std::vector<std::string> &extra_instance_extensions,
                         const std::vector<std::string> &extra_device_extensions)
@@ -219,15 +227,27 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     VkColorSpaceKHR vk_swapchain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     VkPresentModeKHR vk_swapchain_present_mode = VK_PRESENT_MODE_FIFO_KHR;
     {
-        if ( !create_surface(vk_instance, vk_physical_device, &vk_surface) )
+        VulkanSystemCreateSurfaceOutput created_surface;
+        if ( !create_surface(vk_instance, vk_physical_device, &created_surface) )
         {
             fprintf(stderr, C_RED "[%s] Failed to create vulkan surface.", __func__);
             return false;
         }
+        vk_surface = created_surface.surface;
         // Determine if the surface has the necessary capabilities.
         // If not, fail to create the VulkanSystem.
         VkSurfaceCapabilitiesKHR vk_surface_capabilities;
         VK_SUCCEED( vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physical_device, vk_surface, &vk_surface_capabilities) );
+
+        if ( created_surface.initial_framebuffer_pixel_width < vk_surface_capabilities.minImageExtent.width ||
+             created_surface.initial_framebuffer_pixel_width > vk_surface_capabilities.maxImageExtent.width ||
+             created_surface.initial_framebuffer_pixel_height < vk_surface_capabilities.maxImageExtent.height ||
+             created_surface.initial_framebuffer_pixel_height > vk_surface_capabilities.maxImageExtent.height )
+        {
+            fprintf(stderr, C_RED "[%s] The requested initial framebuffer size is not supported by the vulkan surface.\n", __func__);
+            return false;
+        }
+
         auto vk_surface_formats =
             vk_get_vector<VkSurfaceFormatKHR>(vkGetPhysicalDeviceSurfaceFormatsKHR, vk_physical_device, vk_surface);
         if ( vk_surface_formats.empty() )
@@ -235,9 +255,9 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
             fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one image format.", __func__);
             return false;
         }
-        if ( std::find( vk_surface_formats.begin(),
-                        vk_surface_formats.end(),
-                        { vk_swapchain_image_format, vk_swapchain_color_space } ) == vk_surface_formats.end() )
+        if ( !std::any_of( vk_surface_formats.begin(),
+                          vk_surface_formats.end(),
+                          [&](auto v) { return v.format == vk_swapchain_image_format && v.colorSpace == vk_swapchain_color_space; } ) )
         {
             fprintf(stderr, C_RED "[%s] The created vulkan surface does not support the required image format and color space combination.", __func__);
             return false;
@@ -255,12 +275,13 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
 
         auto vk_surface_present_modes =
             vk_get_vector<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, vk_physical_device, vk_surface);
+        // Note: The FIFO present mode is guaranteed by the Vulkan spec.
         if ( vk_surface_present_modes.empty() )
         {
             fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one present mode.", __func__);
             return false;
         }
-        // Note: The FIFO present mode is guaranteed by the Vulkan spec.
+
     }
 
     /*
@@ -451,7 +472,7 @@ int main()
     };
     std::vector<std::string> extra_device_extensions = {
     };
-    // Add glfw's required extensions (e.g. KHR_surface).
+    // Add glfw's required extensions.
     {
         uint32_t num_glfw_instance_extensions;
         const char **glfw_instance_extensions = glfwGetRequiredInstanceExtensions( &num_glfw_instance_extensions );
@@ -459,10 +480,19 @@ int main()
             extra_instance_extensions.emplace_back( glfw_instance_extensions[i] );
     }
 
-    auto create_surface = [glfw_window](VkInstance vk_instance, VkPhysicalDevice vk_physical_device, VkSurfaceKHR *vk_surface_ptr)->bool
+    auto create_surface = [glfw_window](VkInstance vk_instance, VkPhysicalDevice vk_physical_device, VulkanSystemCreateSurfaceOutput *created_surface)->bool
     {
-        VkResult err = glfwCreateWindowSurface(vk_instance, glfw_window, NULL, vk_surface_ptr);
-        return err == VK_SUCCESS;
+        VkSurfaceKHR vk_surface;
+        VkResult err = glfwCreateWindowSurface(vk_instance, glfw_window, NULL, &vk_surface);
+        if ( err != VK_SUCCESS ) return false;
+
+        int width, height;
+        glfwGetFramebufferSize(glfw_window, &width, &height);
+
+        created_surface->surface = vk_surface;
+        created_surface->initial_framebuffer_pixel_width = (uint32_t) width;
+        created_surface->initial_framebuffer_pixel_height = (uint32_t) height;
+        return true;
     };
     VulkanSystem vk_system;
     if ( !CreateVulkanSystem(&vk_system,
