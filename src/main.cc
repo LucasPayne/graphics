@@ -1,3 +1,5 @@
+#define GLFW_INCLUDE_VULKAN
+
 #include <GLFW/glfw3.h>
 #ifndef GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
@@ -47,13 +49,18 @@ struct VulkanSystem
     // NOTE: Might not need to save this, if not going to make more queues.
     uint32_t device_graphics_family;
     uint32_t device_compute_family;
+    uint32_t device_presentation_family;
 
     // A single queue is made available for each capability. These queues might be the same.
     VkQueue device_graphics_queue;
     VkQueue device_compute_queue;
+    VkQueue device_presentation_queue;
+
+    VkSurfaceKHR surface;
 };
 
 bool CreateVulkanSystem(VulkanSystem *vk_system,
+                        std::function<bool(VkInstance, VkPhysicalDevice, VkSurfaceKHR *)> create_surface,
                         const std::vector<std::string> &extra_explicit_layers,
                         const std::vector<std::string> &extra_instance_extensions,
                         const std::vector<std::string> &extra_device_extensions)
@@ -68,7 +75,11 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
      *     This device must support presentation.
      *     This device must expose compute and graphics capabilities.
      *     One graphics capable queue.
-     *     One compute capable queue. (Note: The queues may coincide).
+     *     One compute capable queue.
+     *     One presentation capable queue.
+     *     (Note: The queues may coincide).
+     *     One surface.
+     *     This surface is created by a passed function which only has access to the VkInstance and VkPhysicalDevice.
      */
     std::set<std::string> _explicit_layers = {
     };
@@ -191,11 +202,22 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     }
 
     /*
+     * Create a vulkan surface.
+     */
+    VkSurfaceKHR vk_surface;
+    if ( !create_surface(vk_instance, vk_physical_device, &vk_surface) )
+    {
+        fprintf(stderr, C_RED "[%s] Failed to create vulkan surface.", __func__);
+        return false;
+    }
+
+    /*
      * Create a vulkan logical device.
      */
     VkDevice vk_device;
     uint32_t vk_device_graphics_family;
     uint32_t vk_device_compute_family;
+    uint32_t vk_device_presentation_family;
     {
         std::vector<VkExtensionProperties> device_extension_properties =
             vk_get_vector<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, vk_physical_device, nullptr);
@@ -252,6 +274,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
 
         vk_device_graphics_family = UINT32_MAX;
         vk_device_compute_family = UINT32_MAX;
+        vk_device_presentation_family = UINT32_MAX;
         for (uint32_t i = 0; i < queue_families.size(); i++)
         {
             auto &family = queue_families[i];
@@ -262,6 +285,13 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
             if ( vk_device_compute_family == UINT32_MAX && family.queueFlags & VK_QUEUE_COMPUTE_BIT )
             {
                 vk_device_compute_family = i;
+            }
+            // The VK_KHR_surface extension exposes an equivalent capability test.
+            VkBool32 presentation_supported;
+            VK_SUCCEED( vkGetPhysicalDeviceSurfaceSupportKHR(vk_physical_device, i, vk_surface, &presentation_supported ) );
+            if ( presentation_supported )
+            {
+                vk_device_presentation_family = i;
             }
         }
         if ( vk_device_graphics_family == UINT32_MAX )
@@ -274,28 +304,27 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
             fprintf(stderr, C_RED "[%s] Chosen device has no compute-capable queue family." C_RESET, __func__);
             return false;
         }
-
+        if ( vk_device_presentation_family == UINT32_MAX )
+        {
+            fprintf(stderr, C_RED "[%s] Chosen device has no presentation-capable queue family." C_RESET, __func__);
+            return false;
+        }
+        std::set<uint32_t> used_queue_families = {
+            vk_device_graphics_family,
+            vk_device_compute_family,
+            vk_device_presentation_family
+        };
         std::vector<VkDeviceQueueCreateInfo> queue_infos;
+        for (uint32_t family : used_queue_families)
         {
             VkDeviceQueueCreateInfo info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
-            info.queueFamilyIndex = vk_device_graphics_family;
+            info.queueFamilyIndex = family;
             info.queueCount = 1;
             float queue_priority = 1.0f;
             info.pQueuePriorities = &queue_priority;
             queue_infos.push_back(info);
         }
-        {
-            // If possible, share the graphics and compute queue.
-            if ( vk_device_graphics_family != vk_device_compute_family )
-            {
-                VkDeviceQueueCreateInfo info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
-                info.queueFamilyIndex = vk_device_compute_family;
-                info.queueCount = 1;
-                float queue_priority = 1.0f;
-                info.pQueuePriorities = &queue_priority;
-                queue_infos.push_back(info);
-            }
-        }
+
         VkDeviceCreateInfo info = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
         info.queueCreateInfoCount = queue_infos.size();
         info.pQueueCreateInfos = &queue_infos[0];
@@ -311,6 +340,8 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     vkGetDeviceQueue(vk_device, vk_device_graphics_family, 0, &vk_device_graphics_queue);
     VkQueue vk_device_compute_queue;
     vkGetDeviceQueue(vk_device, vk_device_compute_family, 0, &vk_device_compute_queue);
+    VkQueue vk_device_presentation_queue;
+    vkGetDeviceQueue(vk_device, vk_device_presentation_family, 0, &vk_device_presentation_queue);
 
     /*
      * Set up the VulkanSystem.
@@ -320,8 +351,11 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     vk_system->device = vk_device;
     vk_system->device_graphics_family = vk_device_graphics_family;
     vk_system->device_compute_family = vk_device_compute_family;
+    vk_system->device_presentation_family = vk_device_presentation_family;
     vk_system->device_graphics_queue = vk_device_graphics_queue;
     vk_system->device_compute_queue = vk_device_compute_queue;
+    vk_system->device_presentation_queue = vk_device_presentation_queue;
+    vk_system->surface = vk_surface;
     return true;
 }
 
@@ -339,9 +373,26 @@ int main()
         exit(EXIT_FAILURE);
     }
     
-    /*
-     * Create the VulkanSystem.
-     */
+    ///*
+    // * Create the VulkanSystem.
+    // */
+    //VkSurfaceKHR surface;
+    //VkResult err = glfwCreateWindowSurface(vk_instance, window, NULL, &surface);
+    //if (err != VK_SUCCESS)
+    //{
+    //    fprintf(stderr, C_RED  "[GLFW] Vulkan is not supported (Is the loader installed correctly?)\n" C_RESET);
+    //    "[GLFW] Failed to create Vulkan window surface.\n";
+    //    return -1;
+    //}
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    GLFWwindow *glfw_window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
+    if (glfw_window == nullptr)
+    {
+        fprintf(stderr, C_RED "[GLFW] Failed to create window.\n" C_RESET);
+        exit(EXIT_FAILURE);
+    }
+
     std::vector<std::string> extra_layers = {
     };
     std::vector<std::string> extra_instance_extensions = {
@@ -355,21 +406,20 @@ int main()
         for ( uint32_t i = 0; i < num_glfw_instance_extensions; i++)
             extra_instance_extensions.emplace_back( glfw_instance_extensions[i] );
     }
+
+    auto create_surface = [glfw_window](VkInstance vk_instance, VkPhysicalDevice vk_physical_device, VkSurfaceKHR *vk_surface_ptr)->bool
+    {
+        VkResult err = glfwCreateWindowSurface(vk_instance, glfw_window, NULL, vk_surface_ptr);
+        return err == VK_SUCCESS;
+    };
     VulkanSystem vk_system;
     if ( !CreateVulkanSystem(&vk_system,
+                             create_surface,
                              extra_layers,
                              extra_instance_extensions,
                              extra_device_extensions) )
     {
         fprintf(stderr, C_RED "[vk] Failed to initialize vulkan.\n" C_RESET);
-        exit(EXIT_FAILURE);
-    }
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow *glfw_window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
-    if (glfw_window == nullptr)
-    {
-        fprintf(stderr, C_RED "[GLFW] Failed to create window.\n" C_RESET);
         exit(EXIT_FAILURE);
     }
 

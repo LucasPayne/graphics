@@ -26,6 +26,7 @@ endif
 #--------------------------------------------------------------------------------
 CC=g++
 CFLAGS_IGNORE_WARNINGS += -Wno-missing-field-initializers # Vulkan struct initialization `= {type enum}` is convenient.
+CFLAGS_IGNORE_WARNINGS += -Wno-unused-parameter # Sometimes function objects need an unused parameter to match a type.
 CFLAGS   = -std=c++2a -Wextra -Wall ${CFLAGS_IGNORE_WARNINGS} -ggdb3 -march=native
 CFLAGS  += $(foreach d, $(INCLUDE_PATH), -I$d) # Includes search path.
 LDFLAGS  = $(foreach d, $(LIB_PATH), -L$d) # Library search path.
