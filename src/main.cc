@@ -63,6 +63,7 @@ struct VulkanSystem
     uint32_t swap_chain_num_images;
     #define VULKAN_SYSTEM_SWAP_CHAIN_MAX_NUM_IMAGES 4u
     VkImage swap_chain_images[VULKAN_SYSTEM_SWAP_CHAIN_MAX_NUM_IMAGES];
+    VkImageView swap_chain_color_target_image_views[VULKAN_SYSTEM_SWAP_CHAIN_MAX_NUM_IMAGES];
 };
 
 struct VulkanSystemCreateSurfaceOutput
@@ -395,11 +396,10 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
      * Create a vulkan swap chain.
      */
     VkSwapchainKHR vk_swap_chain;
+    VkFormat vk_swap_chain_image_format = VK_FORMAT_B8G8R8A8_SRGB;
+    VkColorSpaceKHR vk_swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    VkPresentModeKHR vk_swap_chain_present_mode = VK_PRESENT_MODE_FIFO_KHR;
     {
-        VkFormat vk_swap_chain_image_format = VK_FORMAT_B8G8R8A8_SRGB;
-        VkColorSpaceKHR vk_swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        VkPresentModeKHR vk_swap_chain_present_mode = VK_PRESENT_MODE_FIFO_KHR;
-
         VkSurfaceCapabilitiesKHR vk_surface_capabilities;
         VK_SUCCEED( vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physical_device, vk_surface, &vk_surface_capabilities) );
 
@@ -470,6 +470,37 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     vkGetDeviceQueue(vk_device, vk_device_presentation_family, 0, &vk_device_presentation_queue);
 
     /*
+     * Query the images from the swap chain.
+     */
+    auto vk_swap_chain_images = 
+        vk_get_vector<VkImage>(vkGetSwapchainImagesKHR, vk_device, vk_swap_chain);
+    assert( vk_swap_chain_images.size() <= VULKAN_SYSTEM_SWAP_CHAIN_MAX_NUM_IMAGES );
+
+    /*
+     * Set up color target image views for each image in the swap chain.
+     */
+    std::vector<VkImageView> vk_swap_chain_color_target_image_views;
+    for (uint32_t i = 0; i < vk_swap_chain_images.size(); i++)
+    {
+        VkImageViewCreateInfo info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        info.image = vk_swap_chain_images[i];
+        info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        info.format = vk_swap_chain_image_format;
+        info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        info.subresourceRange.baseMipLevel = 0;
+        info.subresourceRange.levelCount = 1;
+        info.subresourceRange.baseArrayLayer = 0;
+        info.subresourceRange.layerCount = 1;
+        VkImageView view;
+        VK_SUCCEED( vkCreateImageView(vk_device, &info, nullptr, &view ) );
+        vk_swap_chain_color_target_image_views.push_back(view);
+    }
+
+    /*
      * Set up the VulkanSystem.
      */
     vk_system->instance = vk_instance;
@@ -482,6 +513,12 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     vk_system->device_compute_queue = vk_device_compute_queue;
     vk_system->device_presentation_queue = vk_device_presentation_queue;
     vk_system->surface = vk_surface;
+    vk_system->swap_chain_num_images = vk_swap_chain_images.size();
+    for (uint32_t i = 0; i < vk_swap_chain_images.size(); i++)
+    {
+        vk_system->swap_chain_images[i] = vk_swap_chain_images[i];
+        vk_system->swap_chain_color_target_image_views[i] = vk_swap_chain_color_target_image_views[i];
+    }
     return true;
 }
 
@@ -534,7 +571,9 @@ int main()
             extra_instance_extensions.emplace_back( glfw_instance_extensions[i] );
     }
 
-    auto create_surface = [glfw_window](VkInstance vk_instance, VkPhysicalDevice vk_physical_device, VulkanSystemCreateSurfaceOutput *created_surface)->bool
+    auto create_surface = [glfw_window](VkInstance vk_instance,
+                                        VkPhysicalDevice vk_physical_device,
+                                        VulkanSystemCreateSurfaceOutput *created_surface)->bool
     {
         VkSurfaceKHR vk_surface;
         VkResult err = glfwCreateWindowSurface(vk_instance, glfw_window, NULL, &vk_surface);
