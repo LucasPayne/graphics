@@ -14,6 +14,7 @@
 #include <limits>
 #include <optional>
 #include <set>
+#include <algorithm>
 
 #include "ansi_color.h"
 
@@ -79,7 +80,15 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
      *     One presentation capable queue.
      *     (Note: The queues may coincide).
      *     One surface.
-     *     This surface is created by a passed function which only has access to the VkInstance and VkPhysicalDevice.
+     *         This surface is created by a passed function which only has access to the VkInstance and VkPhysicalDevice.
+     *         It is the responsibility of the passed create_surface function to provide a surface with sufficient capabilities.
+     *         This surface must have at least one image format and at least one present mode.
+     *         The surface must support the format VK_FORMAT_B8G8R8A8_SRGB.
+     *         The surface must support the color space VK_COLOR_SPACE_SRGB_NONLINEAR_KHR.
+     *     One swapchain.
+     *         Uses image format VK_FORMAT_B8G8R8A8_SRGB.
+     *         Uses color space VK_COLOR_SPACE_SRGB_NONLINEAR_KHR.
+     *         Uses present mode VK_PRESENT_MODE_FIFO_KHR.
      */
     std::set<std::string> _explicit_layers = {
     };
@@ -87,6 +96,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
         "VK_KHR_surface"
     };
     std::set<std::string> _device_extensions = {
+        "VK_KHR_swapchain"
     };
     #define create_string_vector(NAME)\
         for (auto &str : extra_##NAME) _##NAME .insert(str);\
@@ -103,7 +113,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
         app_info.apiVersion = VK_API_VERSION_1_3;
 
         // Check availability of instance extensions.
-        std::vector<VkExtensionProperties> instance_extension_properties =
+        auto instance_extension_properties =
             vk_get_vector<VkExtensionProperties>(vkEnumerateInstanceExtensionProperties, nullptr);
         for (const char *requested_extension_name : instance_extensions)
         {
@@ -121,7 +131,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
         }
 
         // Check availability of requested layers.
-        std::vector<VkLayerProperties> layer_properties =
+        auto layer_properties =
             vk_get_vector<VkLayerProperties>(vkEnumerateInstanceLayerProperties);
         for (const char *requested_layer_name : explicit_layers)
         {
@@ -170,7 +180,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
      */
     VkPhysicalDevice vk_physical_device;
     {
-        std::vector<VkPhysicalDevice> physical_devices =
+        auto physical_devices =
             vk_get_vector<VkPhysicalDevice>(vkEnumeratePhysicalDevices, vk_instance);
         if ( physical_devices.size() == 0 ) return false;
 
@@ -202,13 +212,55 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     }
 
     /*
-     * Create a vulkan surface.
+     * Create a vulkan surface and swap chain.
      */
     VkSurfaceKHR vk_surface;
-    if ( !create_surface(vk_instance, vk_physical_device, &vk_surface) )
+    VkFormat vk_swapchain_image_format = VK_FORMAT_B8G8R8A8_SRGB;
+    VkColorSpaceKHR vk_swapchain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    VkPresentModeKHR vk_swapchain_present_mode = VK_PRESENT_MODE_FIFO_KHR;
     {
-        fprintf(stderr, C_RED "[%s] Failed to create vulkan surface.", __func__);
-        return false;
+        if ( !create_surface(vk_instance, vk_physical_device, &vk_surface) )
+        {
+            fprintf(stderr, C_RED "[%s] Failed to create vulkan surface.", __func__);
+            return false;
+        }
+        // Determine if the surface has the necessary capabilities.
+        // If not, fail to create the VulkanSystem.
+        VkSurfaceCapabilitiesKHR vk_surface_capabilities;
+        VK_SUCCEED( vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physical_device, vk_surface, &vk_surface_capabilities) );
+        auto vk_surface_formats =
+            vk_get_vector<VkSurfaceFormatKHR>(vkGetPhysicalDeviceSurfaceFormatsKHR, vk_physical_device, vk_surface);
+        if ( vk_surface_formats.empty() )
+        {
+            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one image format.", __func__);
+            return false;
+        }
+        if ( std::find( vk_surface_formats.begin(),
+                        vk_surface_formats.end(),
+                        { vk_swapchain_image_format, vk_swapchain_color_space } ) == vk_surface_formats.end() )
+        {
+            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support the required image format and color space combination.", __func__);
+            return false;
+        }
+
+        // Display the surface formats.
+        {
+            Json::Value json;
+            for (uint32_t i = 0; i < vk_surface_formats.size(); i++)
+            {
+                json[0]["format"] = vk_enum_to_string_VkFormat(vk_surface_formats[i].format);
+            }
+            Json::cout << json << "\n";
+        }
+
+        auto vk_surface_present_modes =
+            vk_get_vector<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, vk_physical_device, vk_surface);
+        if ( vk_surface_present_modes.empty() )
+        {
+            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one present mode.", __func__);
+            return false;
+        }
+        // Note: The FIFO present mode is guaranteed by the Vulkan spec.
     }
 
     /*
@@ -219,7 +271,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     uint32_t vk_device_compute_family;
     uint32_t vk_device_presentation_family;
     {
-        std::vector<VkExtensionProperties> device_extension_properties =
+        auto device_extension_properties =
             vk_get_vector<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, vk_physical_device, nullptr);
         printf(C_CYAN "Available device extensions (%zu):\n" C_RESET, device_extension_properties.size());
         #if 0
@@ -249,7 +301,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
             }
         }
 
-        std::vector<VkQueueFamilyProperties> queue_families =
+        auto queue_families =
             vk_get_vector<VkQueueFamilyProperties>(vkGetPhysicalDeviceQueueFamilyProperties, vk_physical_device);
 
         for (uint32_t i = 0; i < queue_families.size(); i++)

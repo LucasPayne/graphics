@@ -43,5 +43,6 @@ namespace Json
 }
 
 const char *vk_enum_to_string_VkPhysicalDeviceType(VkPhysicalDeviceType val);
+const char *vk_enum_to_string_VkFormat(VkFormat val);
 
 #endif // VK_PRINT_H

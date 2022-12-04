@@ -17,6 +17,8 @@
  * Notes:
  *     Why is template deduction failing if the return type is specified by the value being assigned to?
  *     Possibly the compiler could not deduce this.
+ *
+ *     Might want an alternative version with a VkResult success check.
  */
 template <typename T, typename F, typename... Args>
 std::vector<T> vk_get_vector(F vulkan_function, Args&&... args)
