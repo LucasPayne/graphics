@@ -6,7 +6,7 @@
 # Configuration
 #--------------------------------------------------------------------------------
 # Use the vulkan loader and vulkan headers installed from the LunarG vulkan repos.
-USE_LOCAL_VULKAN_SDK=1
+USE_LOCAL_VULKAN_SDK=0
 
 #--------------------------------------------------------------------------------
 # Paths

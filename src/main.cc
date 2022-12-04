@@ -59,6 +59,10 @@ struct VulkanSystem
 
     VkSurfaceKHR surface;
     VkSwapchainKHR swap_chain;
+
+    uint32_t swap_chain_num_images;
+    #define VULKAN_SYSTEM_SWAP_CHAIN_MAX_NUM_IMAGES 4u
+    VkImage swap_chain_images[VULKAN_SYSTEM_SWAP_CHAIN_MAX_NUM_IMAGES];
 };
 
 struct VulkanSystemCreateSurfaceOutput
@@ -97,6 +101,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
      *         Uses image format VK_FORMAT_B8G8R8A8_SRGB.
      *         Uses color space VK_COLOR_SPACE_SRGB_NONLINEAR_KHR.
      *         Uses present mode VK_PRESENT_MODE_FIFO_KHR.
+     *         Acquired images can be used as VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT and VK_IMAGE_USAGE_TRANSFER_DST_BIT.
      */
     std::set<std::string> _explicit_layers = {
     };
@@ -118,7 +123,8 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     VkInstance vk_instance;
     {
         VkApplicationInfo app_info = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-        app_info.apiVersion = VK_API_VERSION_1_3;
+        //app_info.apiVersion = VK_API_VERSION_1_3;
+        app_info.apiVersion = VK_API_VERSION_1_2;
 
         // Check availability of instance extensions.
         auto instance_extension_properties =
@@ -154,6 +160,11 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
                 fprintf(stderr, C_RED "[%s] Requested explicit layer \"%s\" not available.\n" C_RESET, __func__, requested_layer_name);
                 return false;
             }
+        }
+        printf(C_CYAN "Available layers:\n" C_RESET);
+        for (auto &layer : layer_properties )
+        {
+            printf("    %s\n", layer.layerName);
         }
 
         printf(C_CYAN "Available instance extensions (%zu):\n" C_RESET, instance_extension_properties.size());
@@ -220,14 +231,11 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     }
 
     /*
-     * Create a vulkan surface and swap chain.
+     * Create a vulkan surface.
      */
     VkSurfaceKHR vk_surface;
-    VkFormat vk_swapchain_image_format = VK_FORMAT_B8G8R8A8_SRGB;
-    VkColorSpaceKHR vk_swapchain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-    VkPresentModeKHR vk_swapchain_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    VulkanSystemCreateSurfaceOutput created_surface;
     {
-        VulkanSystemCreateSurfaceOutput created_surface;
         if ( !create_surface(vk_instance, vk_physical_device, &created_surface) )
         {
             fprintf(stderr, C_RED "[%s] Failed to create vulkan surface.", __func__);
@@ -248,39 +256,15 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
             return false;
         }
 
-        auto vk_surface_formats =
-            vk_get_vector<VkSurfaceFormatKHR>(vkGetPhysicalDeviceSurfaceFormatsKHR, vk_physical_device, vk_surface);
-        if ( vk_surface_formats.empty() )
-        {
-            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one image format.", __func__);
-            return false;
-        }
-        if ( !std::any_of( vk_surface_formats.begin(),
-                          vk_surface_formats.end(),
-                          [&](auto v) { return v.format == vk_swapchain_image_format && v.colorSpace == vk_swapchain_color_space; } ) )
-        {
-            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support the required image format and color space combination.", __func__);
-            return false;
-        }
-
-        // Display the surface formats.
-        {
-            Json::Value json;
-            for (uint32_t i = 0; i < vk_surface_formats.size(); i++)
-            {
-                json[0]["format"] = vk_enum_to_string_VkFormat(vk_surface_formats[i].format);
-            }
-            Json::cout << json << "\n";
-        }
-
-        auto vk_surface_present_modes =
-            vk_get_vector<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, vk_physical_device, vk_surface);
-        // Note: The FIFO present mode is guaranteed by the Vulkan spec.
-        if ( vk_surface_present_modes.empty() )
-        {
-            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one present mode.", __func__);
-            return false;
-        }
+        // // Display the surface formats.
+        // {
+        //     Json::Value json;
+        //     for (uint32_t i = 0; i < vk_surface_formats.size(); i++)
+        //     {
+        //         json[0]["format"] = vk_enum_to_string_VkFormat(vk_surface_formats[i].format);
+        //     }
+        //     Json::cout << json << "\n";
+        // }
 
     }
 
@@ -406,6 +390,75 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
         VK_SUCCEED(vkCreateDevice(vk_physical_device, &info, nullptr, &vk_device));
     }
 
+
+    /*
+     * Create a vulkan swap chain.
+     */
+    VkSwapchainKHR vk_swap_chain;
+    {
+        VkFormat vk_swap_chain_image_format = VK_FORMAT_B8G8R8A8_SRGB;
+        VkColorSpaceKHR vk_swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        VkPresentModeKHR vk_swap_chain_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+
+        VkSurfaceCapabilitiesKHR vk_surface_capabilities;
+        VK_SUCCEED( vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physical_device, vk_surface, &vk_surface_capabilities) );
+
+        auto vk_surface_formats =
+            vk_get_vector<VkSurfaceFormatKHR>(vkGetPhysicalDeviceSurfaceFormatsKHR, vk_physical_device, vk_surface);
+        if ( vk_surface_formats.empty() )
+        {
+            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one image format.", __func__);
+            return false;
+        }
+        if ( !std::any_of( vk_surface_formats.begin(),
+                          vk_surface_formats.end(),
+                          [&](auto v) { return v.format == vk_swap_chain_image_format && v.colorSpace == vk_swap_chain_color_space; } ) )
+        {
+            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support the required image format and color space combination.", __func__);
+            return false;
+        }
+        auto vk_surface_present_modes =
+            vk_get_vector<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, vk_physical_device, vk_surface);
+        // Note: The FIFO present mode is guaranteed by the Vulkan spec.
+        if ( vk_surface_present_modes.empty() )
+        {
+            fprintf(stderr, C_RED "[%s] The created vulkan surface does not support at least one present mode.", __func__);
+            return false;
+        }
+
+        uint32_t vk_swap_chain_image_count;
+        {
+            uint32_t min_image_count = vk_surface_capabilities.minImageCount;
+            uint32_t max_image_count = vk_surface_capabilities.maxImageCount == 0 ? UINT32_MAX : vk_surface_capabilities.maxImageCount;
+            vk_swap_chain_image_count = std::max(min_image_count, 1u);
+            // Try to use more than one image, if possible.
+            if ( vk_swap_chain_image_count == 1 && max_image_count > 1 )
+            {
+                vk_swap_chain_image_count += 1;
+            }
+            // The VulkanSystem struct sets a cap on the number of images.
+            vk_swap_chain_image_count = std::min(vk_swap_chain_image_count, VULKAN_SYSTEM_SWAP_CHAIN_MAX_NUM_IMAGES);
+            assert( vk_swap_chain_image_count <= max_image_count );
+        }
+
+        VkSwapchainCreateInfoKHR info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+        info.surface = vk_surface;
+        info.imageFormat = vk_swap_chain_image_format;
+        info.imageColorSpace = vk_swap_chain_color_space;
+        info.presentMode = vk_swap_chain_present_mode;
+        info.imageExtent.width = created_surface.initial_framebuffer_pixel_width;
+        info.imageExtent.height = created_surface.initial_framebuffer_pixel_height;
+        info.minImageCount = vk_swap_chain_image_count;
+        info.imageArrayLayers = 1;
+        info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        info.preTransform = vk_surface_capabilities.currentTransform;
+        info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        info.clipped = VK_TRUE;
+        info.oldSwapchain = VK_NULL_HANDLE;
+        VK_SUCCEED( vkCreateSwapchainKHR(vk_device, &info, nullptr, &vk_swap_chain ) );
+    }
+
     /*
      * Query the opaque queue handles.
      */
@@ -467,6 +520,7 @@ int main()
     }
 
     std::vector<std::string> extra_layers = {
+        "VK_LAYER_KHRONOS_validation"
     };
     std::vector<std::string> extra_instance_extensions = {
     };
