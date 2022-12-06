@@ -48,14 +48,15 @@ struct VulkanSystem
 
     // Queue family index to create queues of a certain capability from.
     // NOTE: Might not need to save this, if not going to make more queues.
-    uint32_t device_graphics_family;
-    uint32_t device_compute_family;
-    uint32_t device_presentation_family;
+    //     X-- Need this for creating command pools.
+    uint32_t graphics_family;
+    uint32_t compute_family;
+    uint32_t presentation_family;
 
     // A single queue is made available for each capability. These queues might be the same.
-    VkQueue device_graphics_queue;
-    VkQueue device_compute_queue;
-    VkQueue device_presentation_queue;
+    VkQueue graphics_queue;
+    VkQueue compute_queue;
+    VkQueue presentation_queue;
 
     VkSurfaceKHR surface;
     VkSwapchainKHR swap_chain;
@@ -273,9 +274,9 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
      * Create a vulkan logical device.
      */
     VkDevice vk_device;
-    uint32_t vk_device_graphics_family;
-    uint32_t vk_device_compute_family;
-    uint32_t vk_device_presentation_family;
+    uint32_t vk_graphics_family;
+    uint32_t vk_compute_family;
+    uint32_t vk_presentation_family;
     {
         auto device_extension_properties =
             vk_get_vector<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, vk_physical_device, nullptr);
@@ -330,47 +331,47 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
             Json::cout << json << "\n";
         }
 
-        vk_device_graphics_family = UINT32_MAX;
-        vk_device_compute_family = UINT32_MAX;
-        vk_device_presentation_family = UINT32_MAX;
+        vk_graphics_family = UINT32_MAX;
+        vk_compute_family = UINT32_MAX;
+        vk_presentation_family = UINT32_MAX;
         for (uint32_t i = 0; i < queue_families.size(); i++)
         {
             auto &family = queue_families[i];
-            if ( vk_device_graphics_family == UINT32_MAX && family.queueFlags & VK_QUEUE_GRAPHICS_BIT )
+            if ( vk_graphics_family == UINT32_MAX && family.queueFlags & VK_QUEUE_GRAPHICS_BIT )
             {
-                vk_device_graphics_family = i;
+                vk_graphics_family = i;
             }
-            if ( vk_device_compute_family == UINT32_MAX && family.queueFlags & VK_QUEUE_COMPUTE_BIT )
+            if ( vk_compute_family == UINT32_MAX && family.queueFlags & VK_QUEUE_COMPUTE_BIT )
             {
-                vk_device_compute_family = i;
+                vk_compute_family = i;
             }
             // The VK_KHR_surface extension exposes an equivalent capability test.
             VkBool32 presentation_supported;
             VK_SUCCEED( vkGetPhysicalDeviceSurfaceSupportKHR(vk_physical_device, i, vk_surface, &presentation_supported ) );
             if ( presentation_supported )
             {
-                vk_device_presentation_family = i;
+                vk_presentation_family = i;
             }
         }
-        if ( vk_device_graphics_family == UINT32_MAX )
+        if ( vk_graphics_family == UINT32_MAX )
         {
             fprintf(stderr, C_RED "[%s] Chosen device has no graphics-capable queue family." C_RESET, __func__);
             return false;
         }
-        if ( vk_device_compute_family == UINT32_MAX )
+        if ( vk_compute_family == UINT32_MAX )
         {
             fprintf(stderr, C_RED "[%s] Chosen device has no compute-capable queue family." C_RESET, __func__);
             return false;
         }
-        if ( vk_device_presentation_family == UINT32_MAX )
+        if ( vk_presentation_family == UINT32_MAX )
         {
             fprintf(stderr, C_RED "[%s] Chosen device has no presentation-capable queue family." C_RESET, __func__);
             return false;
         }
         std::set<uint32_t> used_queue_families = {
-            vk_device_graphics_family,
-            vk_device_compute_family,
-            vk_device_presentation_family
+            vk_graphics_family,
+            vk_compute_family,
+            vk_presentation_family
         };
         std::vector<VkDeviceQueueCreateInfo> queue_infos;
         for (uint32_t family : used_queue_families)
@@ -462,12 +463,12 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     /*
      * Query the opaque queue handles.
      */
-    VkQueue vk_device_graphics_queue;
-    vkGetDeviceQueue(vk_device, vk_device_graphics_family, 0, &vk_device_graphics_queue);
-    VkQueue vk_device_compute_queue;
-    vkGetDeviceQueue(vk_device, vk_device_compute_family, 0, &vk_device_compute_queue);
-    VkQueue vk_device_presentation_queue;
-    vkGetDeviceQueue(vk_device, vk_device_presentation_family, 0, &vk_device_presentation_queue);
+    VkQueue vk_graphics_queue;
+    vkGetDeviceQueue(vk_device, vk_graphics_family, 0, &vk_graphics_queue);
+    VkQueue vk_compute_queue;
+    vkGetDeviceQueue(vk_device, vk_compute_family, 0, &vk_compute_queue);
+    VkQueue vk_presentation_queue;
+    vkGetDeviceQueue(vk_device, vk_presentation_family, 0, &vk_presentation_queue);
 
     /*
      * Query the images from the swap chain.
@@ -506,13 +507,14 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     vk_system->instance = vk_instance;
     vk_system->physical_device = vk_physical_device;
     vk_system->device = vk_device;
-    vk_system->device_graphics_family = vk_device_graphics_family;
-    vk_system->device_compute_family = vk_device_compute_family;
-    vk_system->device_presentation_family = vk_device_presentation_family;
-    vk_system->device_graphics_queue = vk_device_graphics_queue;
-    vk_system->device_compute_queue = vk_device_compute_queue;
-    vk_system->device_presentation_queue = vk_device_presentation_queue;
+    vk_system->graphics_family = vk_graphics_family;
+    vk_system->compute_family = vk_compute_family;
+    vk_system->presentation_family = vk_presentation_family;
+    vk_system->graphics_queue = vk_graphics_queue;
+    vk_system->compute_queue = vk_compute_queue;
+    vk_system->presentation_queue = vk_presentation_queue;
     vk_system->surface = vk_surface;
+    vk_system->swap_chain = vk_swap_chain;
     vk_system->swap_chain_num_images = vk_swap_chain_images.size();
     for (uint32_t i = 0; i < vk_swap_chain_images.size(); i++)
     {
@@ -598,9 +600,81 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    while(!glfwWindowShouldClose(glfw_window))
+    VkCommandPool command_pool;
+    {
+        VkCommandPoolCreateInfo info = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+        info.queueFamilyIndex = vk_system.graphics_family;
+        info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        vkCreateCommandPool(vk_system.device, &info, nullptr, &command_pool);
+    }
+    VkCommandBuffer command_buffer;
+    {
+        VkCommandBufferAllocateInfo info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+        info.commandPool = command_pool;
+        info.commandBufferCount = 1;
+        info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        vkAllocateCommandBuffers(vk_system.device, &info, &command_buffer);
+    }
+
+    while( !glfwWindowShouldClose(glfw_window) )
     {
         glfwPollEvents();
+
+        VkSemaphore acquire_semaphore;
+        {
+            VkSemaphoreCreateInfo info = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+            VK_SUCCEED( vkCreateSemaphore(vk_system.device, &info, nullptr, &acquire_semaphore) );
+        }
+        VkSemaphore release_semaphore;
+        {
+            VkSemaphoreCreateInfo info = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+            VK_SUCCEED( vkCreateSemaphore(vk_system.device, &info, nullptr, &release_semaphore) );
+        }
+
+        uint32_t image_index;
+        VK_SUCCEED( vkAcquireNextImageKHR(vk_system.device, vk_system.swap_chain, ~0ull, acquire_semaphore, VK_NULL_HANDLE, &image_index) );
+        assert( image_index < vk_system.swap_chain_num_images );
+
+        vkResetCommandPool(vk_system.device, command_pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT );
+
+        {
+            VkCommandBufferBeginInfo begin_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+            begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            VK_SUCCEED( vkBeginCommandBuffer(command_buffer, &begin_info) );
+
+            VkClearColorValue color = { 1,0,0,1 };
+            VkImageSubresourceRange range = {};
+            range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            range.levelCount = 1;
+            range.layerCount = 1;
+            vkCmdClearColorImage(command_buffer, vk_system.swap_chain_images[image_index], VK_IMAGE_LAYOUT_GENERAL, &color, 1, &range);
+
+            VK_SUCCEED( vkEndCommandBuffer(command_buffer) );
+        }
+
+        VkPipelineStageFlags stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkSubmitInfo submit_info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        submit_info.waitSemaphoreCount = 1;
+        submit_info.pWaitSemaphores = &acquire_semaphore;
+        submit_info.pWaitDstStageMask = &stage;
+        submit_info.signalSemaphoreCount = 1;
+        submit_info.pSignalSemaphores = &release_semaphore;
+        vkQueueSubmit(vk_system.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+
+
+        VkPresentInfoKHR present_info = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+        present_info.waitSemaphoreCount = 1;
+        present_info.pWaitSemaphores = &release_semaphore; //?
+        present_info.swapchainCount = 1;
+        present_info.pSwapchains = &vk_system.swap_chain;
+        present_info.pImageIndices = &image_index;
+        VK_SUCCEED( vkQueuePresentKHR(vk_system.graphics_queue, &present_info) );
+
+
+        VK_SUCCEED( vkDeviceWaitIdle(vk_system.device) );
+
+        vkDestroySemaphore(vk_system.device, acquire_semaphore, nullptr);
+        vkDestroySemaphore(vk_system.device, release_semaphore, nullptr);
     }
 
     glfwDestroyWindow(glfw_window);
