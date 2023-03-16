@@ -44,12 +44,32 @@ INCLUDE_DIR="$(realpath libraries/include)"
     if [ ! -d build ] ; then
         mkdir build
     fi
+
     cd build
     cmake -S .. -B . -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Debug
     make
     cd ..
+
     rm -rf $INCLUDE_DIR/json
     cp -r include/json $INCLUDE_DIR/json
     rm -f $LIB_DIR/libjsoncpp.so*
     cp build/lib/libjsoncpp.so* $LIB_DIR
+)
+(
+    echo "Installing SDL in-tree..."
+    cd submodules/SDL
+
+    if [ ! -d build ] ; then
+        mkdir build
+    fi
+
+    cd build
+    cmake -S .. -B . -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Debug
+    make
+    cd ..
+
+    rm -rf $INCLUDE_DIR/SDL3
+    cp -r include/SDL3 $INCLUDE_DIR/SDL3
+    rm -rf $LIB_DIR/libSDL3.so*
+    cp build/libSDL3.so* $LIB_DIR
 )

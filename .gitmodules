@@ -7,3 +7,6 @@
 [submodule "submodules/jsoncpp"]
 	path = submodules/jsoncpp
 	url = git@github.com:open-source-parsers/jsoncpp.git
+[submodule "submodules/SDL"]
+	path = submodules/SDL
+	url = git@github.com:libsdl-org/SDL.git

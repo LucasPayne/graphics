@@ -559,7 +559,7 @@ int main()
     }
 
     std::vector<std::string> extra_layers = {
-        "VK_LAYER_KHRONOS_validation"
+        //"VK_LAYER_KHRONOS_validation"
     };
     std::vector<std::string> extra_instance_extensions = {
     };
