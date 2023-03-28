@@ -6,6 +6,10 @@ struct DisplayRefreshEvent
 {
     double dt;
     double time;
+    struct {
+        uint16_t width;
+        uint16_t height;
+    } framebuffer;
 };
 
 enum WindowEventTypes

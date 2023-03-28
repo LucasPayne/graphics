@@ -371,6 +371,10 @@ void Platform_GLFWVulkanWindow::enter_loop()
         DisplayRefreshEvent e;
         e.time = display_time;
         e.dt = display_deltatime;
+        int framebuffer_width, framebuffer_height;
+        glfwGetFramebufferSize(glfw_window, &framebuffer_width, &framebuffer_height);
+        e.framebuffer.width = (uint16_t) framebuffer_width;
+        e.framebuffer.height = (uint16_t) framebuffer_height;
         emit_display_refresh_event(e);
 
         VkPresentInfoKHR present_info = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };

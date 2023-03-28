@@ -4,6 +4,12 @@
 
 class Renderer
 {
+public:
+    void render(int x, int y, int width, int height)
+    {
+        printf("rendering...\n");
+    }
+private:
 };
 
 class Application : public PlatformListener
@@ -32,7 +38,7 @@ void Application::window_event_handler(WindowEvent e)
 }
 void Application::display_refresh_event_handler(DisplayRefreshEvent e)
 {
-    printf("%.2f\n", e.dt);
+    m_renderer.render(0, 0, e.framebuffer.width, e.framebuffer.height);
 }
 
 int main()
