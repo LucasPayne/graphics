@@ -33,3 +33,11 @@ void Platform::emit_window_event(WindowEvent e)
         listener->window_event_handler(e);
     }
 }
+
+void Platform::emit_display_refresh_event(DisplayRefreshEvent e)
+{
+    for (PlatformListener *listener : m_listeners)
+    {
+        listener->display_refresh_event_handler(e);
+    }
+}

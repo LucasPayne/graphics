@@ -1,13 +1,12 @@
 #define GLFW_INCLUDE_VULKAN
 
+#include "engine/engine.h"
+#include "engine/platform/vk.h"
+
 #include <GLFW/glfw3.h>
 #ifndef GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
 #endif
-
-#include "platform.h"
-
-#include "vk.h"
 
 #include <iostream>
 #include <stdlib.h>
@@ -313,16 +312,17 @@ std::unique_ptr<Platform_GLFWVulkanWindow> Platform_GLFWVulkanWindow::create()
 
 void Platform_GLFWVulkanWindow::enter_loop()
 {
-    double time = glfwGetTime();
+    double display_time = glfwGetTime();
     while( !glfwWindowShouldClose(glfw_window) )
     {
         glfwPollEvents();
         // Set display time.
+        double display_deltatime;
         {
-            double new_time = glfwGetTime();
-            if (new_time == time) set_display_deltatime(0.01);
-            else set_display_deltatime(new_time - time);
-            time = new_time;
+            double new_display_time = glfwGetTime();
+            if (new_display_time == display_time) display_deltatime = 0.01;
+            else display_deltatime = new_display_time - display_time;
+            display_time = new_display_time;
         }
 
         VkSemaphore acquire_semaphore;
@@ -368,7 +368,10 @@ void Platform_GLFWVulkanWindow::enter_loop()
         submit_info.pCommandBuffers = &command_buffer;
         vkQueueSubmit(vk_system.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
 
-        //-engine callback
+        DisplayRefreshEvent e;
+        e.time = display_time;
+        e.dt = display_deltatime;
+        emit_display_refresh_event(e);
 
         VkPresentInfoKHR present_info = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
         present_info.waitSemaphoreCount = 1;

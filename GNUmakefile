@@ -13,7 +13,8 @@ USE_LOCAL_VULKAN_SDK=0
 #--------------------------------------------------------------------------------
 INCLUDE_PATH=\
     libraries/include\
-    src
+    engine\
+    .
 LIB_PATH=\
     libraries/lib
 ifeq ($(USE_LOCAL_VULKAN_SDK), 1)
@@ -36,17 +37,18 @@ LDFLAGS += $(foreach d, $(LIB_PATH), -Wl,-rpath=$(realpath $d)) # Embed the whol
 # Rules
 #--------------------------------------------------------------------------------
 ENGINE_SOURCE_FILES=\
-    src/platform.cc \
-    src/vk.cc \
-    src/vk_print.cc
+    engine/platform/platform.cc \
+    engine/platform/vk.cc \
+    engine/platform/vk_print.cc
 ENGINE_INCLUDE_FILES=\
-    src/platform.h \
-    src/vk.h \
-    src/vk_print.h
+    engine/engine.h \
+    engine/platform/platform.h \
+    engine/platform/vk.h \
+    engine/platform/vk_print.h
 engine: GNUmakefile $(ENGINE_SOURCE_FILES) $(ENGINE_INCLUDE_FILES)
 	$(CC) $(CFLAGS) -fPIC -o build/libengine.so $(ENGINE_SOURCE_FILES) $(LDFLAGS) -shared -lglfw -ljsoncpp -lvulkan -ldl
 
-applications/test: engine applications/test/test.cc src/platforms/glfw_vulkan_window.cc
+applications/test/test: engine applications/test/test.cc platforms/glfw_vulkan_window.cc
 	$(CC) $(CFLAGS) -o applications/test/test applications/test/test.cc $(LDFLAGS) -Lbuild -Wl,-rpath=$(realpath build) -lengine -lvulkan -lglfw
 
 clean:

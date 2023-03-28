@@ -1,6 +1,12 @@
-#ifndef PLATFORM_INPUT_H_
-#define PLATFORM_INPUT_H_
+#ifndef PLATFORM_EVENT_H_
+#define PLATFORM_EVENT_H_
 #include <stdint.h>
+
+struct DisplayRefreshEvent
+{
+    double dt;
+    double time;
+};
 
 enum WindowEventTypes
 {
@@ -122,4 +128,4 @@ struct MouseEvent
     double scroll_y;
 };
 
-#endif // PLATFORM_INPUT_H_
+#endif // PLATFORM_EVENT_H_
