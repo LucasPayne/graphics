@@ -42,10 +42,12 @@ LDFLAGS += -lglfw \
 #--------------------------------------------------------------------------------
 SOURCE_FILES=\
     src/main.cc\
-    src/vk_print.cc
+    src/vk_print.cc\
+    src/vk.cc
 INCLUDE_FILES=\
     src/vk_print.h\
-    src/vk_util.h
+    src/vk_util.h\
+    src/vk.h
 
 build/main: GNUmakefile $(SOURCE_FILES) $(INCLUDE_FILES)
 	$(CC) $(CFLAGS) -o $@ $(SOURCE_FILES) $(LDFLAGS)
