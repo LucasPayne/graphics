@@ -25,3 +25,11 @@ void Platform::emit_mouse_event(MouseEvent e)
         listener->mouse_event_handler(e);
     }
 }
+
+void Platform::emit_window_event(WindowEvent e)
+{
+    for (PlatformListener *listener : m_listeners)
+    {
+        listener->window_event_handler(e);
+    }
+}

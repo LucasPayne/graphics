@@ -2,12 +2,27 @@
 #define PLATFORM_INPUT_H_
 #include <stdint.h>
 
-enum KeyboardAction {
+enum WindowEventTypes
+{
+    WINDOW_EVENT_FRAMEBUFFER_SIZE,
+};
+struct WindowEvent
+{
+    uint8_t type;
+    struct {
+        uint16_t width;
+        uint16_t height;
+    } framebuffer;
+};
+
+enum KeyboardAction
+{
     KEYBOARD_PRESS,
     KEYBOARD_RELEASE,
 };
 
-enum KeyboardKeys {
+enum KeyboardKeys
+{
     KEY_1,
     KEY_2,
     KEY_3,
@@ -68,21 +83,24 @@ struct KeyboardEvent
     uint8_t action;
 };
 
-struct CursorState {
-    float x;
-    float y;
-    float dx;
-    float dy;
+struct CursorState
+{
+    double x;
+    double y;
+    double dx;
+    double dy;
 };
 
-enum MouseAction {
+enum MouseAction
+{
     MOUSE_BUTTON_PRESS,
     MOUSE_BUTTON_RELEASE,
     MOUSE_MOVE,
     MOUSE_SCROLL,
 };
 
-enum MouseButtons {
+enum MouseButtons
+{
     MOUSE_LEFT,
     MOUSE_RIGHT,
     MOUSE_MIDDLE,
@@ -91,15 +109,17 @@ enum MouseButtons {
 
 typedef uint8_t MouseButtonCode;
 
-struct MouseButton {
+struct MouseButton
+{
     uint8_t code;
 };
 
-struct MouseEvent {
+struct MouseEvent
+{
     uint8_t action;
     MouseButton button;
     CursorState cursor; // No matter the event, this struct is filled.
-    float scroll_y;
+    double scroll_y;
 };
 
 #endif // PLATFORM_INPUT_H_

@@ -6,6 +6,7 @@ class Application : public PlatformListener
 public:
     void keyboard_event_handler(KeyboardEvent e) override;
     void mouse_event_handler(MouseEvent e) override;
+    void window_event_handler(WindowEvent e) override;
     Application()
     {
     };
@@ -15,6 +16,10 @@ void Application::keyboard_event_handler(KeyboardEvent e)
 {
 }
 void Application::mouse_event_handler(MouseEvent e)
+{
+    printf("%.2f %.2f\n", e.cursor.x, e.cursor.y);
+}
+void Application::window_event_handler(WindowEvent e)
 {
 }
 
