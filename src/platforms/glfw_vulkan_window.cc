@@ -22,19 +22,36 @@
 
 #include <json/json.h>
 
-int main()
+class Platform_GLFWVulkanWindow : public Platform
+{
+public:
+    static std::unique_ptr<Platform_GLFWVulkanWindow> create();
+    Platform_GLFWVulkanWindow *enter_loop();
+private:
+    Platform_GLFWVulkanWindow();
+
+    GLFWWindow *glfw_window;
+}
+
+Platform_GLFWVulkanWindow::Platform_GLFWVulkanWindow()
+{
+}
+
+std::unique_ptr<Platform_GLFWVulkanWindow> Platform_GLFWVulkanWindow::create()
 {
     if ( !glfwInit() )
     {
         fprintf(stderr, C_RED  "[GLFW] Failed to initialize glfw.\n" C_RESET);
-        exit(EXIT_FAILURE);
+        return nullptr;
     }
 
     if ( !glfwVulkanSupported() )
     {
         fprintf(stderr, C_RED  "[GLFW] Vulkan is not supported (Is the loader installed correctly?)\n" C_RESET);
-        exit(EXIT_FAILURE);
+        return nullptr;
     }
+
+    std::unique_ptr<Platform_GLFWVulkanWindow> platform = std::make_unique(new Platform_GLFWVulkanWindow());
 
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode *video_mode = glfwGetVideoMode(monitor);
@@ -50,11 +67,11 @@ int main()
     glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE); //todo: Not working, at least with i3?
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE); //todo: Not working, at least with i3?
-    GLFWwindow *glfw_window = glfwCreateWindow(window_width, window_height, "graphics", nullptr, nullptr);
+    glfw_window = glfwCreateWindow(window_width, window_height, "graphics", nullptr, nullptr);
     if (glfw_window == nullptr)
     {
         fprintf(stderr, C_RED "[GLFW] Failed to create window.\n" C_RESET);
-        exit(EXIT_FAILURE);
+        return nullptr;
     }
     glfwSetWindowPos(glfw_window, window_x, window_y);
 
@@ -97,11 +114,10 @@ int main()
                              extra_device_extensions) )
     {
         fprintf(stderr, C_RED "[vk] Failed to initialize vulkan.\n" C_RESET);
-        exit(EXIT_FAILURE);
+        return nullptr;
     }
 
-    //Engine engine;
-    //engine.set_graphics_api(vk_system);
+    platform->set_graphics_api(vk_system);
 
     VkCommandPool command_pool;
     {
@@ -119,9 +135,24 @@ int main()
         vkAllocateCommandBuffers(vk_system.device, &info, &command_buffer);
     }
 
+    return platform;
+}
+
+
+void Platform_GLFWVulkanWindow::enter_loop()
+{
+    double time = glfwGetTime();
     while( !glfwWindowShouldClose(glfw_window) )
     {
         glfwPollEvents();
+        {
+            double new_time = glfwGetTime();
+            if (new_time == time) platform->set_display_deltatime(0.01);
+            else platform->set_display_deltatime(new_time - time);
+            time = new_time;
+        }
+
+        platform.make_graphics_api_current();
 
         VkSemaphore acquire_semaphore;
         {
@@ -145,7 +176,7 @@ int main()
             begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
             VK_SUCCEED( vkBeginCommandBuffer(command_buffer, &begin_info) );
 
-            VkClearColorValue color = { 1,0,0,1 };
+            VkClearColorValue color = { 0,0,0,1 };
             VkImageSubresourceRange range = {};
             range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             range.levelCount = 1;
@@ -166,6 +197,8 @@ int main()
         submit_info.pCommandBuffers = &command_buffer;
         vkQueueSubmit(vk_system.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
 
+        //-engine callback
+
         VkPresentInfoKHR present_info = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
         present_info.waitSemaphoreCount = 1;
         present_info.pWaitSemaphores = &release_semaphore; //?
@@ -182,6 +215,4 @@ int main()
 
     glfwDestroyWindow(glfw_window);
     glfwTerminate();
-
-    return 0;
 }
