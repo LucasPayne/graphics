@@ -23,6 +23,8 @@
 
 #include <json/json.h>
 
+GLFWwindow *g_glfw_window = nullptr;
+
 #define assert_msg(expr, message) {\
     bool val = expr;\
     if (!val)\
@@ -121,6 +123,7 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     create_string_vector(explicit_layers);
     create_string_vector(instance_extensions);
     create_string_vector(device_extensions);
+    #undef create_string_vector
 
     VkInstance vk_instance;
     {
@@ -257,17 +260,6 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
             fprintf(stderr, C_RED "[%s] The requested initial framebuffer size is not supported by the vulkan surface.\n", __func__);
             return false;
         }
-
-        // // Display the surface formats.
-        // {
-        //     Json::Value json;
-        //     for (uint32_t i = 0; i < vk_surface_formats.size(); i++)
-        //     {
-        //         json[0]["format"] = vk_enum_to_string_VkFormat(vk_surface_formats[i].format);
-        //     }
-        //     Json::cout << json << "\n";
-        // }
-
     }
 
     /*
@@ -524,6 +516,14 @@ bool CreateVulkanSystem(VulkanSystem *vk_system,
     return true;
 }
 
+void glfw_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+    {
+        glfwSetWindowShouldClose(g_glfw_window, GLFW_TRUE);
+    }
+}
+
 int main()
 {
     if ( !glfwInit() )
@@ -537,26 +537,32 @@ int main()
         fprintf(stderr, C_RED  "[GLFW] Vulkan is not supported (Is the loader installed correctly?)\n" C_RESET);
         exit(EXIT_FAILURE);
     }
-    
-    ///*
-    // * Create the VulkanSystem.
-    // */
-    //VkSurfaceKHR surface;
-    //VkResult err = glfwCreateWindowSurface(vk_instance, window, NULL, &surface);
-    //if (err != VK_SUCCESS)
-    //{
-    //    fprintf(stderr, C_RED  "[GLFW] Vulkan is not supported (Is the loader installed correctly?)\n" C_RESET);
-    //    "[GLFW] Failed to create Vulkan window surface.\n";
-    //    return -1;
-    //}
 
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode *video_mode = glfwGetVideoMode(monitor);
+    int monitor_width = video_mode->width;
+    int monitor_height = video_mode->height;
+    int monitor_x, monitor_y;
+    glfwGetMonitorPos(monitor, &monitor_x, &monitor_y);
+    int window_x = monitor_x + 3*monitor_width/4;
+    int window_y = monitor_y + 3*monitor_height/10;
+    int window_width = monitor_width - 3*monitor_width/4 - 5;
+    int window_height = (4*monitor_height)/10;
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow *glfw_window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
+    glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE); //todo: Not working, at least with i3?
+    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
+    GLFWwindow *glfw_window = glfwCreateWindow(window_width, window_height, "graphics", nullptr, nullptr);
     if (glfw_window == nullptr)
     {
         fprintf(stderr, C_RED "[GLFW] Failed to create window.\n" C_RESET);
         exit(EXIT_FAILURE);
     }
+    glfwSetWindowPos(glfw_window, window_x, window_y);
+    glfwSetKeyCallback(glfw_window, glfw_key_callback);
+
+    // Make globally available for now.
+    g_glfw_window = glfw_window;
 
     std::vector<std::string> extra_layers = {
         //"VK_LAYER_KHRONOS_validation"
@@ -669,7 +675,6 @@ int main()
         present_info.pSwapchains = &vk_system.swap_chain;
         present_info.pImageIndices = &image_index;
         VK_SUCCEED( vkQueuePresentKHR(vk_system.graphics_queue, &present_info) );
-
 
         VK_SUCCEED( vkDeviceWaitIdle(vk_system.device) );
 
