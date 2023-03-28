@@ -100,7 +100,8 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    Engine engine;
+    //Engine engine;
+    //engine.set_graphics_api(vk_system);
 
     VkCommandPool command_pool;
     {
@@ -161,6 +162,8 @@ int main()
         submit_info.pWaitDstStageMask = &stage;
         submit_info.signalSemaphoreCount = 1;
         submit_info.pSignalSemaphores = &release_semaphore;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &command_buffer;
         vkQueueSubmit(vk_system.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
 
         VkPresentInfoKHR present_info = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
