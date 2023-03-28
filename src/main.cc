@@ -100,6 +100,8 @@ int main()
         exit(EXIT_FAILURE);
     }
 
+    Engine engine;
+
     VkCommandPool command_pool;
     {
         VkCommandPoolCreateInfo info = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
