@@ -1,14 +1,21 @@
 #include "platform.h"
-#include "platform/glfw_vulkan_window.cc"
+#include "platforms/glfw_vulkan_window.cc"
 
 class Application : public PlatformListener
 {
 public:
-    void keyboard_event_handler(KeyboardEvent e) = 0;
-    void mouse_event_handler(MouseEvent e) = 0;
+    void keyboard_event_handler(KeyboardEvent e) override;
+    void mouse_event_handler(MouseEvent e) override;
     Application()
     {
     };
+};
+
+void Application::keyboard_event_handler(KeyboardEvent e)
+{
+}
+void Application::mouse_event_handler(MouseEvent e)
+{
 }
 
 int main()

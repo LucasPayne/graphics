@@ -14,6 +14,7 @@ class Platform
 {
 public:
     void add_listener(PlatformListener *listener);
+    virtual void enter_loop() = 0;
 protected:
     //void set_graphics_api(VkSystem &vk_system);
     //void make_graphics_api_current();

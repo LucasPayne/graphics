@@ -5,6 +5,8 @@
 #include <vulkan/vulkan.h>
 #endif
 
+#include "platform.h"
+
 #include "vk.h"
 
 #include <iostream>
@@ -17,6 +19,7 @@
 #include <optional>
 #include <set>
 #include <algorithm>
+#include <memory>
 
 #include "ansi_color.h"
 
@@ -26,12 +29,15 @@ class Platform_GLFWVulkanWindow : public Platform
 {
 public:
     static std::unique_ptr<Platform_GLFWVulkanWindow> create();
-    Platform_GLFWVulkanWindow *enter_loop();
+    void enter_loop() override;
+
+    GLFWwindow *glfw_window;
+    VulkanSystem vk_system;
+    VkCommandPool command_pool;
+    VkCommandBuffer command_buffer;
 private:
     Platform_GLFWVulkanWindow();
-
-    GLFWWindow *glfw_window;
-}
+};
 
 Platform_GLFWVulkanWindow::Platform_GLFWVulkanWindow()
 {
@@ -51,7 +57,7 @@ std::unique_ptr<Platform_GLFWVulkanWindow> Platform_GLFWVulkanWindow::create()
         return nullptr;
     }
 
-    std::unique_ptr<Platform_GLFWVulkanWindow> platform = std::make_unique(new Platform_GLFWVulkanWindow());
+    std::unique_ptr<Platform_GLFWVulkanWindow> platform = std::unique_ptr<Platform_GLFWVulkanWindow>(new Platform_GLFWVulkanWindow());
 
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode *video_mode = glfwGetVideoMode(monitor);
@@ -67,12 +73,13 @@ std::unique_ptr<Platform_GLFWVulkanWindow> Platform_GLFWVulkanWindow::create()
     glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE); //todo: Not working, at least with i3?
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE); //todo: Not working, at least with i3?
-    glfw_window = glfwCreateWindow(window_width, window_height, "graphics", nullptr, nullptr);
+    GLFWwindow *glfw_window = glfwCreateWindow(window_width, window_height, "graphics", nullptr, nullptr);
     if (glfw_window == nullptr)
     {
         fprintf(stderr, C_RED "[GLFW] Failed to create window.\n" C_RESET);
         return nullptr;
     }
+    platform->glfw_window = glfw_window;
     glfwSetWindowPos(glfw_window, window_x, window_y);
 
     std::vector<std::string> extra_layers = {
@@ -117,7 +124,9 @@ std::unique_ptr<Platform_GLFWVulkanWindow> Platform_GLFWVulkanWindow::create()
         return nullptr;
     }
 
-    platform->set_graphics_api(vk_system);
+    //platform->set_graphics_api(vk_system);
+
+    platform->vk_system = vk_system;
 
     VkCommandPool command_pool;
     {
@@ -134,6 +143,8 @@ std::unique_ptr<Platform_GLFWVulkanWindow> Platform_GLFWVulkanWindow::create()
         info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         vkAllocateCommandBuffers(vk_system.device, &info, &command_buffer);
     }
+    platform->command_pool = command_pool;
+    platform->command_buffer = command_buffer;
 
     return platform;
 }
@@ -147,12 +158,12 @@ void Platform_GLFWVulkanWindow::enter_loop()
         glfwPollEvents();
         {
             double new_time = glfwGetTime();
-            if (new_time == time) platform->set_display_deltatime(0.01);
-            else platform->set_display_deltatime(new_time - time);
+            if (new_time == time) set_display_deltatime(0.01);
+            else set_display_deltatime(new_time - time);
             time = new_time;
         }
 
-        platform.make_graphics_api_current();
+        //make_graphics_api_current();
 
         VkSemaphore acquire_semaphore;
         {

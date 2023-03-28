@@ -32,25 +32,22 @@ CFLAGS   = -std=c++2a -Wextra -Wall ${CFLAGS_IGNORE_WARNINGS} -ggdb3 -march=nati
 CFLAGS  += $(foreach d, $(INCLUDE_PATH), -I$d) # Includes search path.
 LDFLAGS  = $(foreach d, $(LIB_PATH), -L$d) # Library search path.
 LDFLAGS += $(foreach d, $(LIB_PATH), -Wl,-rpath=$(realpath $d)) # Embed the whole library search path in the rpath.
-LDFLAGS += -lglfw \
-	   -ljsoncpp \
-           -lvulkan \
-           -ldl
-
 #--------------------------------------------------------------------------------
 # Rules
 #--------------------------------------------------------------------------------
-SOURCE_FILES=\
-    src/main.cc\
-    src/vk_print.cc\
-    src/vk.cc
-INCLUDE_FILES=\
-    src/vk_print.h\
-    src/vk_util.h\
-    src/vk.h
+ENGINE_SOURCE_FILES=\
+    src/platform.cc \
+    src/vk.cc \
+    src/vk_print.cc
+ENGINE_INCLUDE_FILES=\
+    src/platform.h \
+    src/vk.h \
+    src/vk_print.h
+engine: GNUmakefile $(ENGINE_SOURCE_FILES) $(ENGINE_INCLUDE_FILES)
+	$(CC) $(CFLAGS) -fPIC -o build/libengine.so $(ENGINE_SOURCE_FILES) $(LDFLAGS) -shared -lglfw -ljsoncpp -lvulkan -ldl
 
-build/main: GNUmakefile $(SOURCE_FILES) $(INCLUDE_FILES)
-	$(CC) $(CFLAGS) -o $@ $(SOURCE_FILES) $(LDFLAGS)
+applications/test: engine applications/test/test.cc src/platforms/glfw_vulkan_window.cc
+	$(CC) $(CFLAGS) -o applications/test/test applications/test/test.cc $(LDFLAGS) -Lbuild -Wl,-rpath=$(realpath build) -lengine -lvulkan -lglfw
 
 clean:
-	rm build/main
+	rm build/libengine.so
