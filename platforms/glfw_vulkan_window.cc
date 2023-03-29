@@ -87,6 +87,11 @@ public:
     {
         return m_active;
     }
+
+    VulkanSystem *GetVulkanSystem()
+    {
+        return &vk_system;
+    }
 private:
     GLFWwindow *glfw_window;
     VulkanSystem vk_system;
@@ -282,8 +287,6 @@ std::unique_ptr<Platform_GLFWVulkanWindow> Platform_GLFWVulkanWindow::create()
         fprintf(stderr, C_RED "[vk] Failed to initialize vulkan.\n" C_RESET);
         return nullptr;
     }
-
-    //platform->set_graphics_api(vk_system);
 
     platform->vk_system = vk_system;
 

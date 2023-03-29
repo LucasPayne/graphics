@@ -48,8 +48,8 @@ ENGINE_INCLUDE_FILES=\
 engine: GNUmakefile $(ENGINE_SOURCE_FILES) $(ENGINE_INCLUDE_FILES)
 	$(CC) $(CFLAGS) -fPIC -o build/libengine.so $(ENGINE_SOURCE_FILES) $(LDFLAGS) -shared -lglfw -ljsoncpp -lvulkan -ldl
 
-applications/test/test: engine applications/test/test.cc platforms/glfw_vulkan_window.cc
-	$(CC) $(CFLAGS) -o applications/test/test applications/test/test.cc $(LDFLAGS) -Lbuild -Wl,-rpath=$(realpath build) -lengine -lvulkan -lglfw
+applications/test/test: engine applications/test/test.cc platforms/glfw_vulkan_window.cc renderer/renderer.cc
+	$(CC) $(CFLAGS) -o applications/test/test applications/test/test.cc renderer/renderer.cc $(LDFLAGS) -Lbuild -Wl,-rpath=$(realpath build) -lengine -lvulkan -lglfw
 
 clean:
 	rm build/libengine.so

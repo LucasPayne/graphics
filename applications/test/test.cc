@@ -1,16 +1,8 @@
 #include "engine.h"
+#include "renderer/renderer.h"
 #include "platforms/glfw_vulkan_window.cc"
 #include <stdio.h>
-
-class Renderer
-{
-public:
-    void render(int x, int y, int width, int height)
-    {
-        printf("rendering...\n");
-    }
-private:
-};
+#include <assert.h>
 
 class Application : public PlatformListener
 {
@@ -43,10 +35,12 @@ void Application::display_refresh_event_handler(DisplayRefreshEvent e)
 
 int main()
 {
+    std::unique_ptr<Platform_GLFWVulkanWindow> platform = Platform_GLFWVulkanWindow::create();
+
     Renderer renderer;
+    renderer.set_api(platform->GetVulkanSystem());
     Application app(renderer);
 
-    std::unique_ptr<Platform> platform = Platform_GLFWVulkanWindow::create();
     platform->add_listener(&app);
     platform->enter_loop();
 }

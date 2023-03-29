@@ -1,0 +1,84 @@
+<!-- Generator: GNU source-highlight 3.1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><i><font color="#9A1900">// Retrieved and modified from https://gist.github.com/RabaDabaDoba/145049536f815903c79944599c6f952a</font></i>
+<i><font color="#9A1900">/*</font></i>
+<i><font color="#9A1900"> * This is free and unencumbered software released into the public domain.</font></i>
+<i><font color="#9A1900"> *</font></i>
+<i><font color="#9A1900"> * For more information, please refer to </font></i><u><font color="#0000FF">&lt;https://unlicense.org&gt;</font></u>
+<i><font color="#9A1900"> */</font></i>
+
+<i><font color="#9A1900">//Regular text</font></i>
+<b><font color="#000080">#define</font></b> C_BLACK <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;30m"</font>
+<b><font color="#000080">#define</font></b> C_RED <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;31m"</font>
+<b><font color="#000080">#define</font></b> C_GREEN <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;32m"</font>
+<b><font color="#000080">#define</font></b> C_YELLOW <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;33m"</font>
+<b><font color="#000080">#define</font></b> C_BLUE <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;34m"</font>
+<b><font color="#000080">#define</font></b> C_MAGENTA <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;35m"</font>
+<b><font color="#000080">#define</font></b> C_CYAN <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;36m"</font>
+<b><font color="#000080">#define</font></b> C_WHITE <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;37m"</font>
+
+<i><font color="#9A1900">//Regular bold text</font></i>
+<b><font color="#000080">#define</font></b> C_BLACK_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;30m"</font>
+<b><font color="#000080">#define</font></b> C_RED_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;31m"</font>
+<b><font color="#000080">#define</font></b> C_GREEN_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;32m"</font>
+<b><font color="#000080">#define</font></b> C_YELLOW_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;33m"</font>
+<b><font color="#000080">#define</font></b> C_BLUE_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;34m"</font>
+<b><font color="#000080">#define</font></b> C_MAGENTA_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;35m"</font>
+<b><font color="#000080">#define</font></b> C_CYAN_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;36m"</font>
+<b><font color="#000080">#define</font></b> C_WHITE_B <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;37m"</font>
+
+<i><font color="#9A1900">//Regular underline text</font></i>
+<b><font color="#000080">#define</font></b> C_BLACK_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;30m"</font>
+<b><font color="#000080">#define</font></b> C_RED_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;31m"</font>
+<b><font color="#000080">#define</font></b> C_GREEN_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;32m"</font>
+<b><font color="#000080">#define</font></b> C_YELLOW_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;33m"</font>
+<b><font color="#000080">#define</font></b> C_BLUE_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;34m"</font>
+<b><font color="#000080">#define</font></b> C_MAGENTA_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;35m"</font>
+<b><font color="#000080">#define</font></b> C_CYAN_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;36m"</font>
+<b><font color="#000080">#define</font></b> C_WHITE_U <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[4;37m"</font>
+
+<i><font color="#9A1900">//Regular background</font></i>
+<b><font color="#000080">#define</font></b> C_BLACK_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[40m"</font>
+<b><font color="#000080">#define</font></b> C_RED_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[41m"</font>
+<b><font color="#000080">#define</font></b> C_GREEN_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[42m"</font>
+<b><font color="#000080">#define</font></b> C_YELLOW_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[43m"</font>
+<b><font color="#000080">#define</font></b> C_BLUE_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[44m"</font>
+<b><font color="#000080">#define</font></b> C_MAGENTA_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[45m"</font>
+<b><font color="#000080">#define</font></b> C_CYAN_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[46m"</font>
+<b><font color="#000080">#define</font></b> C_WHITE_BG <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[47m"</font>
+
+<i><font color="#9A1900">//High intensity background </font></i>
+<b><font color="#000080">#define</font></b> C_BLACK_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;100m"</font>
+<b><font color="#000080">#define</font></b> C_RED_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;101m"</font>
+<b><font color="#000080">#define</font></b> C_GREEN_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;102m"</font>
+<b><font color="#000080">#define</font></b> C_YELLOW_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;103m"</font>
+<b><font color="#000080">#define</font></b> C_BLUE_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;104m"</font>
+<b><font color="#000080">#define</font></b> C_MAGENTA_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;105m"</font>
+<b><font color="#000080">#define</font></b> C_CYAN_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;106m"</font>
+<b><font color="#000080">#define</font></b> C_WHITE_BG_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;107m"</font>
+
+<i><font color="#9A1900">//High intensty text</font></i>
+<b><font color="#000080">#define</font></b> C_BLACK_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;90m"</font>
+<b><font color="#000080">#define</font></b> C_RED_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;91m"</font>
+<b><font color="#000080">#define</font></b> C_GREEN_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;92m"</font>
+<b><font color="#000080">#define</font></b> C_YELLOW_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;93m"</font>
+<b><font color="#000080">#define</font></b> C_BLUE_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;94m"</font>
+<b><font color="#000080">#define</font></b> C_MAGENTA_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;95m"</font>
+<b><font color="#000080">#define</font></b> C_CYAN_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;96m"</font>
+<b><font color="#000080">#define</font></b> C_WHITE_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0;97m"</font>
+
+<i><font color="#9A1900">//Bold high intensity text</font></i>
+<b><font color="#000080">#define</font></b> C_BLACK_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;90m"</font>
+<b><font color="#000080">#define</font></b> C_RED_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;91m"</font>
+<b><font color="#000080">#define</font></b> C_GREEN_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;92m"</font>
+<b><font color="#000080">#define</font></b> C_YELLOW_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;93m"</font>
+<b><font color="#000080">#define</font></b> C_BLUE_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;94m"</font>
+<b><font color="#000080">#define</font></b> C_MAGENTA_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;95m"</font>
+<b><font color="#000080">#define</font></b> C_CYAN_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;96m"</font>
+<b><font color="#000080">#define</font></b> C_WHITE_B_H <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[1;97m"</font>
+
+<i><font color="#9A1900">//Reset</font></i>
+<b><font color="#000080">#define</font></b> C_RESET <font color="#FF0000">"</font><font color="#CC33CC">\e</font><font color="#FF0000">[0m"</font>
+</tt></pre>
